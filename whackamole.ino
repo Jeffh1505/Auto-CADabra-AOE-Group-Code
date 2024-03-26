@@ -91,7 +91,8 @@ void loop() {
     }
     Serial.print("Game Over! Total Score: ");
     Serial.println(score);
-    while (true) {}
+    delay(1000);
+    exit(0);
   }
   delay(100);
 }
