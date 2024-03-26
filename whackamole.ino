@@ -45,7 +45,7 @@ void loop() {
 
     for (int i = 0; i < 5; i++) {
       const uint8_t limitSwitchState = digitalRead(limitSwitchPins[i]);
-      limitSwitchStates[i] = (static_cast<uint8_t>(limitSwitchState) == HIGH) ? UP : DOWN;
+      limitSwitchStates[i] = (limitSwitchState == HIGH) ? UP : DOWN;
 
 
       if (limitSwitchStates[i] == UP) { // Mole is Up (Waiting to be Hit)
