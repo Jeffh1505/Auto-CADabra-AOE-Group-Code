@@ -18,7 +18,6 @@ unsigned long moleHitStartTime[5] = {0, 0, 0, 0, 0};
 bool moleHitDelay[5] = {false, false, false, false, false};
 int moleStayTime[5] = {800, 800, 800, 800, 800};
 
-int servoMoveTime = 15;
 unsigned long gameStartTime;
 int score = 0;
 
@@ -59,6 +58,7 @@ void loop() {
         }
       } else if (limitSwitchStates[i] == DOWN) { // Mole is Down (Hit)
         if (!moleHitDelay[i]) { //Ensure we're not checking a servo that is currently in the hit delay (prevents false positives)
+          servos[i].write(MOLE_DOWN);
           hitTime[i] = currentMillis;
           score++;
           
