@@ -25,12 +25,9 @@ int score = 0;
 
 void setup() {
   for (int i = 0; i < 5; i++) {
-    pinMode(limitSwitchPins[i], INPUT);
-    limitSwitches[i].attach(limitSwitchPins[i]);
+    limitSwitches[i] = ezButton(limitSwitchPins[i]);
     limitSwitches[i].setDebounceTime(50);
-  }
 
-  for (int i = 0; i < 5; i++) {
     servos[i].attach(servoPins[i]);
     servos[i].write(MOLE_DOWN);
   }
@@ -89,7 +86,7 @@ void loop() {
 
     }
 
-  } else if ( (currentMillis - gameStartTime) >= gameDuration) {
+  } else if ((currentMillis - gameStartTime) >= gameDuration) {
     for (int i = 0; i < 5; i++) {
       servos[i].write(MOLE_DOWN);
     }
