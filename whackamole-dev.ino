@@ -4,7 +4,7 @@
 const int limitSwitchPin = 1;
 const int servoPin = 6;
 Servo servo;
-ezButton limitSwitch;
+ezButton limitSwitch(limitSwitchPin);
 
 const enum LimitSwitchState { UP, DOWN };
 const enum ServoPosition { MOLE_UP = 180, MOLE_DOWN = 0 };
@@ -24,8 +24,6 @@ unsigned long gameStartTime;
 int score = 0;
 
 void setup() {
-  pinMode(limitSwitchPin, INPUT);
-  limitSwitch.attach(limitSwitchPin);
   limitSwitch.setDebounceTime(50);
   
   servo.attach(servoPin);
