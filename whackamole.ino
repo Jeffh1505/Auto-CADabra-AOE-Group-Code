@@ -1,8 +1,10 @@
 #include <Servo.h>
+#include <ezButton.h>
 
 const int limitSwitchPins[] = {1, 2, 3, 4, 5};
 const int servoPins[] = {6, 7, 8, 9, 10};
 Servo servos[5];
+ezButton limitSwitches[5];
 
 const enum LimitSwitchState { UP, DOWN };
 const enum ServoPosition { MOLE_UP = 180, MOLE_DOWN = 0 };
@@ -24,6 +26,8 @@ int score = 0;
 void setup() {
   for (int i = 0; i < 5; i++) {
     pinMode(limitSwitchPins[i], INPUT);
+    limitSwitches[i].attach(limitSwitchPins[i]);
+    limitSwitches[i].setDebounceTime(50);
   }
 
   for (int i = 0; i < 5; i++) {
@@ -43,9 +47,9 @@ void loop() {
     const int randomStayTime = random(500, 800);
 
     for (int i = 0; i < 5; i++) {
-      const uint8_t limitSwitchState = digitalRead(limitSwitchPins[i]);
+      limitSwitches[i].loop();
+      const uint8_t limitSwitchState = limitSwitches[i].getState();
       limitSwitchStates[i] = (limitSwitchState == HIGH) ? UP : DOWN;
-
 
       if (limitSwitchStates[i] == UP) { // Mole is Up (Waiting to be Hit)
         if (randomChance < 3) { // 30% chance of it going back down
