@@ -1,13 +1,22 @@
-const int switchPin1 = 1;
+#include <ezButton.h>
 
+ezButton limitSwitch(PinNumberHere);  
 void setup() {
   Serial.begin(9600);
-  pinMode(switchPin1, INPUT);  
+  limitSwitch.setDebounceTime(50); 
 }
-
 void loop() {
-  int state1 = digitalRead(switchPin1);
-  Serial.print("Limit Switch");
-  Serial.print(state1 == HIGH ? "Activated" : "Idle");
-  delay(100);
+  limitSwitch.loop();
+  
+  if(limitSwitch.isPressed())
+    Serial.println("The limit switch: UNTOUCHED -> TOUCHED");
+  
+  if(limitSwitch.isReleased())
+    Serial.println("The limit switch: TOUCHED -> UNTOUCHED");
+  
+  int state = limitSwitch.getState();
+  if(state == HIGH)
+    Serial.println("The limit switch: UNTOUCHED");
+  else
+    Serial.println("The limit switch: TOUCHED");
 }
