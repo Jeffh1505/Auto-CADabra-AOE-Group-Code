@@ -2,9 +2,11 @@
 #include <ezButton.h>
 
 const int limitSwitchPin = 1;
+const int startButtonPin = 2;  // Add a start button to pin 2
 const int servoPin = 6;
 Servo servo;
 ezButton limitSwitch(limitSwitchPin);
+ezButton startButton(startButtonPin);  // Create a button object for the start button
 
 const enum LimitSwitchState { UP, DOWN };
 const enum ServoPosition { MOLE_UP = 180, MOLE_DOWN = 0 };
@@ -25,11 +27,17 @@ int score = 0;
 
 void setup() {
   limitSwitch.setDebounceTime(50);
+  startButton.setDebounceTime(50);  // Set debounce time for the start button
   
   servo.attach(servoPin);
   servo.write(MOLE_DOWN);
 
   Serial.begin(9600);
+  
+  // Wait for the start button to be pressed
+  Serial.println("Press the start button to begin the game...");
+  while (!startButton.isPressed());  // Wait until the start button is pressed
+  
   gameStartTime = millis();
 }
 
