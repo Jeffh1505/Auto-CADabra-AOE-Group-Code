@@ -2,10 +2,14 @@
 #include <ezButton.h>
 
 const int limitSwitchPin = 8;
+const int servoPin = 7;
+Servo servo;
 ezButton limitSwitch(limitSwitchPin);
 
 enum LimitSwitchState { UP,
                         DOWN };
+enum ServoPosition { MOLE_UP = 90,
+                     MOLE_DOWN = 0 };
 
 LimitSwitchState limitSwitchState = DOWN;
 
@@ -27,18 +31,11 @@ int score = 0;
 
 void setup() {
   limitSwitch.setDebounceTime(50);
+  servo.attach(servoPin);
+  servo.write(MOLE_DOWN);
 
   Serial.begin(9600);
   unsigned long startTime = millis();
-
-  while (millis() - startTime < 10000) {  // Wait 10 seconds
-    // Do nothing
-  }
-
-  if (!startedPrinted) {
-    Serial.println("Start");
-    startedPrinted = true;
-  }
   gameStartTime = millis();
 }
 
@@ -48,23 +45,30 @@ void loop() {
     const unsigned long gameSpeed = 800 - ((currentMillis - gameStartTime) / 1000) * 10;
     const uint8_t randomChance = random(0, 10);
     const int randomStayTime = random(500, 800);
-
     limitSwitch.loop();
     const uint8_t switchState = limitSwitch.getState();
     limitSwitchState = (switchState == HIGH) ? UP : DOWN;
+
+    if (!startedPrinted) {
+      Serial.println("Start");
+      startedPrinted = true;
+    }
 
     if (limitSwitchState == UP) {  // Mole is Up (Waiting to be Hit)
       if (hitScorePrinted) {
         hitScorePrinted = false;
       }
       if (randomChance < 3) {  // 30% chance of it going back down
+        servo.write(MOLE_DOWN);
         previousMillis = currentMillis;
       }
       if (currentMillis - previousMillis >= moleStayTime) {  // Comes back up again after staying down for a random amount of time
-        moleStayTime = randomStayTime;                       //Give it another random for next time
+        servo.write(MOLE_UP);
+        moleStayTime = randomStayTime;  //Give it another random for next time
       }
     } else if (limitSwitchState == DOWN) {  // Mole is Down (Hit)
-      if (!moleHitDelay) {                  //Ensure we're not checking a servo that is currently in the hit delay (prevents false positives)
+      if (!moleHitDelay) {
+        servo.write(MOLE_DOWN);  //Ensure we're not checking a servo that is currently in the hit delay (prevents false positives)
         hitTime = currentMillis;
         score++;
 
@@ -78,6 +82,7 @@ void loop() {
     }
 
     if (moleHitDelay && (currentMillis - moleHitStartTime >= HIT_DELAY)) {  //Make sure the moles that are hit come back after the delay
+      servo.write(MOLE_UP);
       moleHitDelay = false;
     }
 
