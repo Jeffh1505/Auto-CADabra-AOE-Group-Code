@@ -1,15 +1,33 @@
 #include <Servo.h>
 
 Servo myservo;  
+bool moleUp = false;
+bool moleDown = false; 
 
 void setup() {
-  myservo.attach(9);  
+  myservo.write(0);
+  myservo.attach(9); 
+  moleDown = true; 
+  Serial.begin(9600); 
 }
 
 void loop() {
-  myservo.write(0);     // move servo to 0 degrees
-  delay(1000);         
+  if(!moleUp) {
+    Serial.println("Going to 180");
+    myservo.write(180); 
+    moleUp = true; 
+    moleDown = false; 
+    delay(1000);         
+  }
+
+
+  if(!moleDown) {
+    Serial.println("Going to 0");
+    myservo.write(0); 
+    moleDown = true; 
+    moleUp = false; 
+    delay(1000); 
+  }
   
-  myservo.write(180);   // move servo to 180 degrees
-  delay(1000);          
+
 }
