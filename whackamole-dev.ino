@@ -10,21 +10,28 @@ enum LimitSwitchState { UP,
                         DOWN };
 enum ServoPosition { MOLE_UP = 180,
                      MOLE_DOWN = 10 };
-//25
+
 LimitSwitchState limitSwitchState = DOWN;
 
 bool startedPrinted = false;
 bool hitScorePrinted = false;
 bool endedPrinted = false;
 
-constexpr unsigned long gameDuration = 60000;  
+constexpr unsigned long gameDuration = 60000;
 constexpr int HIT_DELAY = 1500;
-
+constexpr unsigned long moleStayTimeMin = 500; // control how long the mole stays down. (WHEN HIT)
+constexpr unsigned long moleStayTimeMax = 2000; // control how long the mole stays down.(WHEN HIT)
+constexpr unsigned long moleWaitTimeMin = 2000; // control the wait time when the mole is up and has not been hit.
+constexpr unsigned long moleWaitTimeMax = 3000; // control the wait time when the mole is up and has not been hit.
+ 
 unsigned long previousMillis = 0;
 unsigned long hitTime = 0;
 unsigned long moleHitStartTime = 0;
 bool moleHitDelay = false;
-int moleStayTime = 800;  // Start with a higher value
+unsigned long moleStayTime = 800;
+unsigned long moleWaitTime = 2000;
+unsigned long moleUpStartTime = 0;
+bool moleUpDelay = false;
 
 unsigned long gameStartTime;
 
@@ -39,47 +46,53 @@ void setup() {
 
 void loop() {
   unsigned long currentMillis = millis();
-  if ((currentMillis - gameStartTime) <= gameDuration) {  // Ensure game conditions only occur during set game duration
-    const uint8_t randomChance = random(0, 10);
-    const int randomStayTime = random(1000, 2000);
-    
+  if ((currentMillis - gameStartTime) <= gameDuration) {
     limitSwitch.loop();
     const uint8_t switchState = limitSwitch.getState();
     limitSwitchState = (switchState == HIGH) ? UP : DOWN;
 
-    if (!startedPrinted) {
+    if (!startedPrinted && !moleUpDelay) {
       Serial.println("Start");
       startedPrinted = true;
+      moleUpStartTime = currentMillis;
+      moleUpDelay = true;
     }
 
-    if (limitSwitchState == UP) {  // Mole is Up (Waiting to be Hit)
-      if (hitScorePrinted) {
-        hitScorePrinted = false;
-      }
-      
-      
+    if (moleUpDelay && (currentMillis - moleUpStartTime >= random(500, 2000))) {
+      servo.write(MOLE_UP);
+      moleWaitTime = random(moleWaitTimeMin, moleWaitTimeMax);
+      moleUpDelay = false;
+    }
 
-    } else if (limitSwitchState == DOWN) {  // Mole is Down (Hit)
-      if (!moleHitDelay) {
-        servo.write(MOLE_DOWN);  // Ensure we're not checking a servo that is currently in the hit delay (prevents false positives)
-        hitTime = currentMillis;
-        moleHitStartTime = currentMillis;
-        moleHitDelay = true;
-        if (limitSwitchState == DOWN && !hitScorePrinted) {
-          Serial.println("harvard");
-          hitScorePrinted = true;
+    if (!moleUpDelay) {
+      if (limitSwitchState == UP) {
+        if (currentMillis - moleHitStartTime >= moleStayTime) {
+          servo.write(MOLE_DOWN);
+          moleHitStartTime = currentMillis;
+          moleStayTime = random(moleStayTimeMin, moleStayTimeMax);
+        }
+      } else if (limitSwitchState == DOWN) {
+        if (!moleHitDelay) {
+          hitTime = currentMillis;
+          moleHitStartTime = currentMillis;
+          moleHitDelay = true;
+          if (!hitScorePrinted) {
+            Serial.println("harvard");
+            hitScorePrinted = true;
+          }
         }
       }
-    }
 
-    if (moleHitDelay && (currentMillis - moleHitStartTime >= HIT_DELAY)) {  // Make sure the moles that are hit come back after the delay
-      servo.write(MOLE_UP);
-      moleHitDelay = false;
-    }
+      if (moleHitDelay && (currentMillis - moleHitStartTime >= HIT_DELAY)) {
+        servo.write(MOLE_UP);
+        moleHitDelay = false;
+        moleWaitTime = random(moleWaitTimeMin, moleWaitTimeMax);
+      }
 
-    // Gradually decrease the moleStayTime to increase the game speed over 1 minute
-    if (moleStayTime > 200) {  
-      moleStayTime -= 25;  // Decrease moleStayTime gradually
+      if (currentMillis - hitTime >= moleStayTime && limitSwitchState == DOWN) {
+        servo.write(MOLE_UP);
+        moleWaitTime = random(moleWaitTimeMin, moleWaitTimeMax);
+      }
     }
 
   } else if ((currentMillis - gameStartTime) >= gameDuration) {
@@ -90,5 +103,6 @@ void loop() {
     delay(1000);
     exit(0);
   }
+
   delay(100);
 }
