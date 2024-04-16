@@ -1,99 +1,142 @@
 #include <Servo.h>
 #include <ezButton.h>
 
-const int limitSwitchPins[] = {1, 2, 3, 4, 5};
-const int servoPins[] = {6, 7, 8, 9, 10};
+const int limitSwitchPins[] = {4, 8, 12, 2, 7 };
+const int servoPins[] = {5, 3, 6, 9, 10 };
 Servo servos[5];
-ezButton limitSwitches[5];
+ezButton limitSwitches[5] = { ezButton(limitSwitchPins[0]), ezButton(limitSwitchPins[1]), ezButton(limitSwitchPins[2]), ezButton(limitSwitchPins[3]), ezButton(limitSwitchPins[4]) };
 
-const enum LimitSwitchState { UP, DOWN };
-const enum ServoPosition { MOLE_UP = 180, MOLE_DOWN = 0 };
+enum LimitSwitchState {
+  UP,
+  DOWN
+};
 
-LimitSwitchState limitSwitchStates[5] = {DOWN, DOWN, DOWN, DOWN, DOWN};
+LimitSwitchState limitSwitchStates[5] = { DOWN, DOWN, DOWN, DOWN, DOWN };
 
-constexpr unsigned long gameDuration = 90000;
-constexpr int HIT_DELAY = 500;
+bool startedPrinted = false;
+bool hitScorePrinted = false;
+bool endedPrinted = false;
+bool startUpDelay[5] = { true, true, true, true, true };
 
-unsigned long previousMillis[5] = {0, 0, 0, 0, 0};
-unsigned long hitTime[5] = {0, 0, 0, 0, 0};
-unsigned long moleHitStartTime[5] = {0, 0, 0, 0, 0};
-bool moleHitDelay[5] = {false, false, false, false, false};
-int moleStayTime[5] = {800, 800, 800, 800, 800};
-
+constexpr unsigned long gameDuration = 45000;
 unsigned long gameStartTime;
-int score = 0;
+unsigned long randomMole = 2;
+
+struct Mole {
+  int MOLE_DOWN;
+  unsigned long moleHitStartTime;
+  bool moleHitDelay;
+  bool startRandomization;
+  bool Randomized;
+  unsigned long randomizationStart;
+  unsigned long hitTime;
+  unsigned long moleStayTimeMin;
+  unsigned long moleStayTimeMax;
+  unsigned long HIT_DELAY;
+};
+
+Mole moles[5] = {
+  { 0, 0, false, false, false, 0, 0, 3000, 5000, 1500 },
+  { 10, 0, false, false, false, 0, 0, 2000, 4000, 1000 },
+  { 25, 0, false, false, false, 0, 0, 3000, 5000, 950 },
+  { 25, 0, false, false, false, 0, 0, 2000, 4000, 2000 },
+  { 0, 0, false, false, false, 0, 0, 1000, 6000, 1750 }
+};
+
+const char* comboNames[5] = { "brown", "upenn", "yale", "harvard", "princeton" };
 
 void setup() {
   for (int i = 0; i < 5; i++) {
-    limitSwitches[i] = ezButton(limitSwitchPins[i]);
     limitSwitches[i].setDebounceTime(50);
-
+    servos[i].write(moles[i].MOLE_DOWN);
     servos[i].attach(servoPins[i]);
-    servos[i].write(MOLE_DOWN);
   }
 
   Serial.begin(9600);
-  gameStartTime = millis();
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
-  if ((currentMillis - gameStartTime) <= gameDuration) { // Ensure game conditions only occur during set game duration
-    const unsigned long gameSpeed = 800 - ((currentMillis - gameStartTime) / 1000) * 10;
-    const uint8_t randomChance = random(0, 10);
-    const int randomStayTime = random(500, 800);
-
-    for (int i = 0; i < 5; i++) {
-      limitSwitches[i].loop();
-      const uint8_t limitSwitchState = limitSwitches[i].getState();
-      limitSwitchStates[i] = (limitSwitchState == HIGH) ? UP : DOWN;
-
-      if (limitSwitchStates[i] == UP) { // Mole is Up (Waiting to be Hit)
-        if (randomChance < 3) { // 30% chance of it going back down
-          servos[i].write(MOLE_DOWN);
-          previousMillis[i] = currentMillis;
-        }
-        if (currentMillis - previousMillis[i] >= moleStayTime[i]) { // Comes back up again after staying down for a random amount of time
-          servos[i].write(MOLE_UP);
-          moleStayTime[i] = randomStayTime; //Give it another random for next time
-        }
-      } else if (limitSwitchStates[i] == DOWN) { // Mole is Down (Hit)
-        if (!moleHitDelay[i]) { //Ensure we're not checking a servo that is currently in the hit delay (prevents false positives)
-          servos[i].write(MOLE_DOWN);
-          hitTime[i] = currentMillis;
-          score++;
-          
-          moleHitStartTime[i] = currentMillis;
-          moleHitDelay[i] = true;
-          
-          char buffer[100];
-          sprintf(buffer, "Mole %d Hit, Score: %d", i + 1, score);
-          Serial.println(buffer);
-        }
-      }
-
-      if (moleHitDelay[i] && (currentMillis - moleHitStartTime[i] >= HIT_DELAY)) { //Make sure the moles that are hit come back after the delay
-        servos[i].write(MOLE_UP);
-        moleHitDelay[i] = false;
-      }
-
-      if (moleStayTime[i] > 100) { //Make game go zoooooom
-        moleStayTime[i] = gameSpeed;
-        if (moleStayTime[i] < 100) {
-          moleStayTime[i] = 100;
-        }
-      }
-
+  if (!startedPrinted) {
+    limitSwitches[randomMole].loop();
+    const uint8_t switchState = limitSwitches[randomMole].getState();
+    limitSwitchStates[randomMole] = (switchState == HIGH) ? UP : DOWN;
+    servos[randomMole].write(180);
+    if (limitSwitchStates[randomMole] == DOWN) {
+      servos[randomMole].write(moles[randomMole].MOLE_DOWN);
+      Serial.println("Start");
+      startedPrinted = true;
+      gameStartTime = millis();
     }
+  } else {
+    unsigned long currentMillis = millis();
+    if ((currentMillis - gameStartTime) <= gameDuration) {
+      for (int i = 0; i < 5; i++) {
+        limitSwitches[i].loop();
+        const uint8_t switchState = limitSwitches[i].getState();
+        limitSwitchStates[i] = (switchState == HIGH) ? UP : DOWN;
 
-  } else if ((currentMillis - gameStartTime) >= gameDuration) {
-    for (int i = 0; i < 5; i++) {
-      servos[i].write(MOLE_DOWN);
+        if (limitSwitchStates[i] == UP) {
+          if (startUpDelay[i] && (currentMillis - gameStartTime >= random(500, 2000))) {
+            servos[i].write(180);
+            startUpDelay[i] = false;
+            moles[i].startRandomization = true;
+          }
+
+          if (!moles[i].moleHitDelay && moles[i].startRandomization && !moles[i].Randomized) {
+            if (currentMillis - moles[i].randomizationStart >= random(moles[i].moleStayTimeMin, moles[i].moleStayTimeMax)) {
+              servos[i].write(moles[i].MOLE_DOWN);
+              moles[i].randomizationStart = currentMillis;
+              moles[i].Randomized = true;
+            }
+          } else if (moles[i].Randomized) {
+            if (currentMillis - moles[i].randomizationStart >= moles[i].HIT_DELAY) {
+              servos[i].write(180);
+              moles[i].Randomized = false;
+            }
+          }
+
+          if (hitScorePrinted) {
+            hitScorePrinted = false;
+          }
+        } else if (limitSwitchStates[i] == DOWN) {
+          if (!moles[i].moleHitDelay) {
+            servos[i].write(moles[i].MOLE_DOWN);
+            moles[i].hitTime = currentMillis;
+            moles[i].moleHitStartTime = currentMillis;
+            moles[i].moleHitDelay = true;
+            moles[i].startRandomization = false;
+            moles[i].Randomized = false;
+            if (!hitScorePrinted) {
+              Serial.println(comboNames[i]);
+              hitScorePrinted = true;
+            }
+            moles[i].HIT_DELAY = random(1000, 2000);
+          }
+        }
+
+        if (moles[i].moleHitDelay && (currentMillis - moles[i].moleHitStartTime >= moles[i].HIT_DELAY)) {
+          servos[i].write(180);
+          moles[i].moleHitDelay = false;
+          moles[i].startRandomization = true;
+        }
+      }
+    } else {
+      if (!endedPrinted) {
+        Serial.println("End");
+        endedPrinted = false;
+        delay(10000);
+        startedPrinted = false;
+        hitScorePrinted = false;
+        endedPrinted = false;
+        randomMole = 3;
+        for (int i = 0; i < 5; i++) {
+          limitSwitchStates[i] = DOWN;
+          startUpDelay[i] = true;
+        }
+        delay(100);
+        Serial.println("Restart");
+      }
     }
-    Serial.print("Game Over! Total Score: ");
-    Serial.println(score);
-    delay(1000);
-    exit(0);
   }
   delay(100);
 }
